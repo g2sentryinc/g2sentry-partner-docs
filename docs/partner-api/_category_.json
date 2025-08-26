@@ -1,0 +1,8 @@
+{
+  "label": "Partner API",
+  "position": 2,
+  "link": {
+    "type": "generated-index",
+    "description": "The Partner API allows you to integrate with G2 Sentry."
+  }
+}

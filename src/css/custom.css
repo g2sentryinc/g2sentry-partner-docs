@@ -1,0 +1,36 @@
+/**
+ * Any CSS included here will be global. The classic template
+ * bundles Infima by default. Infima is a CSS framework designed to
+ * work well for content-centric websites.
+ */
+
+:root {
+  --ifm-color-primary: #f5821f;           /* Orange from logo */
+  --ifm-color-primary-dark: #d86e1a;      /* Slightly darker orange */
+  --ifm-color-primary-darker: #b85d15;    /* Even darker orange */
+  --ifm-color-primary-darkest: #89460f;   /* Deep orange/brown */
+  --ifm-color-primary-light: #ff9a3a;     /* Lighter orange */
+  --ifm-color-primary-lighter: #ffb066;   /* Even lighter orange */
+  --ifm-color-primary-lightest: #ffd2a6;  /* Very light orange */
+  --ifm-code-font-size: 95%;
+  --docusaurus-highlighted-code-line-bg: rgba(137, 137, 137, 0.1); /* Gray from logo */
+}
+
+/* For readability concerns, you should choose a lighter palette in dark mode. */
+[data-theme='dark'] {
+  --ifm-color-primary: #898989;           /* Gray from logo */
+  --ifm-color-primary-dark: #6e6e6e;      /* Slightly darker gray */
+  --ifm-color-primary-darker: #4d4d4d;    /* Even darker gray */
+  --ifm-color-primary-darkest: #2c2c2c;   /* Near black */
+  --ifm-color-primary-light: #a3a3a3;     /* Lighter gray */
+  --ifm-color-primary-lighter: #bdbdbd;   /* Even lighter gray */
+  --ifm-color-primary-lightest: #e0e0e0;  /* Very light gray */
+  --docusaurus-highlighted-code-line-bg: rgba(137, 137, 137, 0.3); /* Gray, more visible in dark mode */
+}
+
+.navbar__logo img {
+  background: #eee;
+  border-radius: 8px; 
+  padding: 4px;
+  height: 40px; 
+}
