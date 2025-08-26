@@ -5,7 +5,7 @@ import styles from "./styles.module.css";
 const FeatureList = [
   {
     title: "Get Started as a Partner",
-    url: "/docs/get-started/overview",
+    url: "docs/get-started/overview",
     Svg: require("@site/static/img/undraw_get_started.svg").default,
     description: (
       <>
@@ -17,7 +17,7 @@ const FeatureList = [
   },
   {
     title: "Partner API",
-    url: "/docs/partner-api/overview",
+    url: "docs/partner-api/overview",
     Svg: require("@site/static/img/undraw_partner_api.svg").default,
     description: (
       <>
@@ -29,7 +29,7 @@ const FeatureList = [
   },
   {
     title: "G2 Sentry Portal",
-    url: "/docs/portal/overview",
+    url: "docs/portal/overview",
     Svg: require("@site/static/img/undraw_portal.svg").default,
     description: (
       <>
