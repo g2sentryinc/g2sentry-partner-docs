@@ -1,0 +1,1 @@
+"use strict";(self.webpackChunkg_2_sentry_partner_docs=self.webpackChunkg_2_sentry_partner_docs||[]).push([[2498],{2498:(e,r,s)=>{s.d(r,{createArchitectureServices:()=>c.S});var c=s(3009);s(8198)}}]);

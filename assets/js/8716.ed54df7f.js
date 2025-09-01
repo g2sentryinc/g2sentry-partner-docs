@@ -1,0 +1,1 @@
+"use strict";(self.webpackChunkg_2_sentry_partner_docs=self.webpackChunkg_2_sentry_partner_docs||[]).push([[8716],{8716:(e,r,s)=>{s.d(r,{createPacketServices:()=>c.$});var c=s(9811);s(8198)}}]);
