@@ -1,0 +1,506 @@
+{
+	"info": {
+		"_postman_id": "a4e8a3f6-5e97-4fdc-a898-b9a2ad442c5f",
+		"name": "G2SentryPartnerAPI",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+		"_exporter_id": "30323992"
+	},
+	"item": [
+		{
+			"name": "Sign-In",
+			"item": [
+				{
+					"name": "Login",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"var jsonData = pm.response.json();\r",
+									"\r",
+									"pm.test(\"Response should match the expected schema\", function () {\r",
+									"    pm.response.to.have.jsonSchema({\r",
+									"        type: \"object\",\r",
+									"        properties: {\r",
+									"            partnerKey: { type: \"string\" },\r",
+									"            name: { type: \"string\" },\r",
+									"            accessToken: { type: \"string\" },\r",
+									"            refreshToken: { type: \"string\" }\r",
+									"        },\r",
+									"        required: [\"partnerKey\", \"name\", \"accessToken\", \"refreshToken\"]\r",
+									"    });\r",
+									"});\r",
+									"\r",
+									"\r",
+									"// Test for status code\r",
+									"pm.test(\"Status code is 200\", function () {\r",
+									"    pm.response.to.have.status(200);\r",
+									"});\r",
+									"\r",
+									"pm.test(\"Valid data\", () => {\r",
+									"  pm.expect(jsonData.partnerKey).to.eql(\"TEST_PARTNER\");\r",
+									"  pm.expect(jsonData.name).to.eql(\"Test Partner Company\");\r",
+									"});\r",
+									"\r",
+									"pm.environment.set(\"accessToken\", jsonData.accessToken);\r",
+									"pm.environment.set(\"refreshToken\", jsonData.refreshToken);\r",
+									""
+								],
+								"type": "text/javascript",
+								"packages": {}
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n  \"partnerKey\": \"TEST_PARTNER\",\r\n  \"partnerSecret\": \"secret&123\"\r\n}"
+						},
+						"url": {
+							"raw": "{{BASE_PARTNER_URL}}/access/login",
+							"host": [
+								"{{BASE_PARTNER_URL}}"
+							],
+							"path": [
+								"access",
+								"login"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Refresh Token",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"var jsonData = pm.response.json();\r",
+									"\r",
+									"\r",
+									"// Test for status code\r",
+									"pm.test(\"Status code is 200\", function () {\r",
+									"    pm.response.to.have.status(200);\r",
+									"});\r",
+									"\r",
+									"pm.test(\"Valid data\", () => {\r",
+									"  pm.expect(jsonData.partnerKey).to.eql(\"TEST_PARTNER\");\r",
+									"  pm.expect(jsonData.name).to.eql(\"Test Partner Company\");\r",
+									"});\r",
+									"\r",
+									"pm.environment.set(\"accessToken\", jsonData.accessToken);\r",
+									"pm.environment.set(\"refreshToken\", jsonData.refreshToken);\r",
+									""
+								],
+								"type": "text/javascript",
+								"packages": {}
+							}
+						}
+					],
+					"protocolProfileBehavior": {
+						"disableBodyPruning": true
+					},
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json",
+								"type": "text"
+							},
+							{
+								"key": "refreshToken",
+								"value": "{{refreshToken}}",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": ""
+						},
+						"url": {
+							"raw": "{{BASE_PARTNER_URL}}/access/refresh",
+							"host": [
+								"{{BASE_PARTNER_URL}}"
+							],
+							"path": [
+								"access",
+								"refresh"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Jobs",
+			"item": [
+				{
+					"name": "New Job",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Response schema is valid\", function () {\r",
+									"    const response = pm.response.json();\r",
+									"    pm.expect(response).to.have.all.keys('jobId');\r",
+									"    pm.expect(response.jobId).to.be.a('number');\r",
+									"});\r",
+									"\r",
+									"pm.test(\"Status code is 201\", function () {\r",
+									"    pm.expect(pm.response.code).to.equal(201);\r",
+									"});\r",
+									"\r",
+									"pm.test(\"Content-Type is application/json\", function () {\r",
+									"    pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(\"application/json\");\r",
+									"});\r",
+									"\r",
+									"var jsonData = pm.response.json();\r",
+									"pm.environment.set(\"jobId\", jsonData.jobId);"
+								],
+								"type": "text/javascript",
+								"packages": {}
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{accessToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n  \"name\": \"Open House 23 Main St\",\r\n  \"location\": {\r\n    \"address\": {\r\n      \"address1\": \"234 Main St\",\r\n      \"address2\": \"APT 673\",\r\n      \"city\": \"Long Beach\",\r\n      \"state\": \"CA\",\r\n      \"zip\": \"92345\"\r\n    },\r\n    \"gps\": {\r\n      \"latitude\": 40.717495,\r\n      \"longitude\": -74.169667\r\n    }\r\n  },\r\n  \"whenDate\": \"2025-08-24T14:15:22Z\",\r\n  \"duration\": 40,\r\n  \"description\": \"Some textual description, instructions and notes for guardian\",\r\n  \"client\": {\r\n    \"clientId\": \"InternalPartnerClientId\",\r\n    \"clientInfo\": \"Bob Smith - our VIP client\",\r\n    \"clientPhone\": \"1234567890\"\r\n  }\r\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{BASE_PARTNER_URL}}/jobs",
+							"host": [
+								"{{BASE_PARTNER_URL}}"
+							],
+							"path": [
+								"jobs"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get Job Info",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{accessToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{BASE_PARTNER_URL}}/jobs/34",
+							"host": [
+								"{{BASE_PARTNER_URL}}"
+							],
+							"path": [
+								"jobs",
+								"34"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Job Status",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{accessToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{BASE_PARTNER_URL}}/jobs/{{jobId}}/status",
+							"host": [
+								"{{BASE_PARTNER_URL}}"
+							],
+							"path": [
+								"jobs",
+								"{{jobId}}",
+								"status"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Job Full Info",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{accessToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{BASE_PARTNER_URL}}/jobs/{{jobId}}",
+							"host": [
+								"{{BASE_PARTNER_URL}}"
+							],
+							"path": [
+								"jobs",
+								"{{jobId}}"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Cancel Job",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{accessToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{BASE_PARTNER_URL}}/jobs/{{jobId}}/cancel",
+							"host": [
+								"{{BASE_PARTNER_URL}}"
+							],
+							"path": [
+								"jobs",
+								"{{jobId}}",
+								"cancel"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Rate Review",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"\r",
+									"pm.test(\"Status code is 200\", function () {\r",
+									"    pm.expect(pm.response.code).to.equal(200);\r",
+									"});\r",
+									"\r",
+									"pm.test(\"Content-Type is application/json\", function () {\r",
+									"    pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(\"application/json\");\r",
+									"});\r",
+									""
+								],
+								"type": "text/javascript",
+								"packages": {}
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{accessToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n    \"rate\": 4,\r\n    \"review\": \"It was nice service but can be better\"\r\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{BASE_PARTNER_URL}}/jobs/{{jobId}}/review",
+							"host": [
+								"{{BASE_PARTNER_URL}}"
+							],
+							"path": [
+								"jobs",
+								"{{jobId}}",
+								"review"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Update Job",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{accessToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "PATCH",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n  \"name\": \"Another Open House\",\r\n  \"location\": {\r\n    \"address\": {\r\n      \"address1\": \"123 Main St\",\r\n      \"address2\": \"APT 23\",\r\n      \"city\": \"Long Beach\",\r\n      \"state\": \"CA\",\r\n      \"zip\": \"92345\"\r\n    }\r\n  },\r\n  \"whenDate\": \"2025-09-05T15:00:00Z\",\r\n  \"duration\": 120\r\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{BASE_PARTNER_URL}}/jobs/{{jobId}}",
+							"host": [
+								"{{BASE_PARTNER_URL}}"
+							],
+							"path": [
+								"jobs",
+								"{{jobId}}"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Guardians",
+			"item": [
+				{
+					"name": "Guardian Profile",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{accessToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{BASE_PARTNER_URL}}/jobs/{{jobId}}/guardians/{{guardianId}}",
+							"host": [
+								"{{BASE_PARTNER_URL}}"
+							],
+							"path": [
+								"jobs",
+								"{{jobId}}",
+								"guardians",
+								"{{guardianId}}"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		}
+	]
+}
