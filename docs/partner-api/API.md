@@ -12,7 +12,7 @@ The G2 Sentry Partner API enables seamless integration with G2 Sentry’s guardi
 - **Job Management:** Create, update, cancel, and review jobs for your clients. Retrieve job details and real-time status.
 - **Guardian Operations:** Access guardian profiles assigned to jobs.
 - **Callbacks:** Receive real-time job status updates via callbacks to your platform.  
-  *See [Callbacks](./Callbacks.md) for details.*
+  *See [Callbacks](./callbacks.md) for details.*
 - **RESTful Design:** All endpoints follow REST principles for predictable integration.
 
 ## Resources
@@ -41,7 +41,7 @@ The G2 Sentry Partner API enables seamless integration with G2 Sentry’s guardi
 
 ## Getting Started
 
-1. Review the [OpenAPI specification](../partner-api/g2sentry-partner-api.yaml) for detailed endpoint documentation.
+1. Review the [OpenAPI specification](https://parner-api-demo.g2sentry.com/swagger-ui.html) for detailed endpoint documentation.
 2. Use the Postman collection to explore and test API requests.
 3. Visit the Swagger UI for interactive API documentation and live testing.
 4. Implement authentication and begin integrating job management and callback features into your platform.
