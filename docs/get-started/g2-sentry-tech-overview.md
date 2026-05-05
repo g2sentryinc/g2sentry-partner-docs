@@ -2,249 +2,102 @@
 sidebar_position: 2
 title: G2 Sentry Tech Overview
 sidebar_label: Tech Overview
-description: G2 Sentry Tech Overview
+description: What you're integrating with, in one page
 tags:
   - architecture
-  - software
   - design
   - g2sentry
-  - diagram
 ---
 
-# G2 Sentry System - Technical Overview
+# Tech Overview
 
-## Executive Summary
+A one-pager on what sits behind the Partner API, so you know what to
+expect from it and where failures can come from.
 
-G2 Sentry is a cloud-native platform that provides **On-Demand Physical Sentry services by Trusted Professionals**. The system connects clients requiring security presence with verified security professionals (Guardians) through a fully automated, scalable infrastructure built on modern technologies and best practices.
+## What G2 Sentry does
 
-## System Architecture
+Connects requesters (partners and end users) with verified security
+professionals (Guardians) for on-demand physical security work — open
+houses, event duty, overnight watch, etc. The platform handles
+onboarding, identity verification, dispatch, live tracking, and
+post-job feedback.
 
-The platform follows a microservices architecture deployed entirely on AWS, emphasizing scalability, reliability, and operational excellence through automation and cloud-native principles.
+## What you talk to
 
-### Core Components
+As a partner, you only touch two surfaces:
 
-#### Backend Services
+- **Partner API** — a REST service for job CRUD plus login/refresh.
+- **Callback webhooks** — HMAC-signed POSTs delivered to a URL on your
+  server when a job changes state.
 
-**Main API Backend**
-- Built on Java 21 (LTS) with Spring Boot 3.x
-- Utilizes reactive WebFlux for fully asynchronous operations
-- Processes requests from Guardian mobile applications
-- Handles callback communications to partners
-- Deployed on AWS ECS/Fargate serverless compute
-- Automatically scales based on demand via Application Load Balancer
+Everything else (Guardian app, dispatch logic, identity checks, SMS
+masking, the portal) is internal to G2 Sentry and not part of your
+integration.
 
-**Partner API Backend**
-- Shares identical technology stack with Main API
-- Manages partner-specific operations and integrations
-- Co-located on AWS ECS/Fargate with independent scaling
-
-**Portal Backend**
-- Manages billing operations and user administration
-- Built on the same Java 21/Spring Boot 3.x reactive stack
-- Serves both internal G2 Sentry staff and external partners
-- Provides incident management and troubleshooting capabilities
-
-#### Frontend Applications
-
-**Guardian Mobile App**
-- Cross-platform solution using Expo React Native framework
-- Compatible with modern Android and iOS devices
-- Communicates directly with Main API backend
-- Real-time push notifications via Firebase Cloud Messaging
-
-**Portal Frontend**
-- Built using React Refine framework (subject to evolution)
-- Serves dual purposes:
-  - Internal dashboard for G2 Sentry operations team
-  - Partner portal for billing management and analytics
-- Features include statistics visualization, incident management, and support communication
-
-#### Data Layer
-
-**PostgreSQL Database**
-- Managed through AWS Aurora SaaS
-- Centralized data store for all system entities
-- High availability and automated backups
-
-**AWS S3 Storage**
-- Stores large files (avatars, documents)
-- Utilizes presigned URLs for secure, temporary access
-
-### Cloud-Native Design Principles
-
-All backend services adhere to the [12-Factor App](https://12factor.net/) methodology:
-- **Stateless architecture** enabling horizontal scaling
-- **Externalized configuration** via AWS Parameter Store
-- **Disposable processes** for rapid deployment and scaling
-- **Environment parity** across development, staging, and production
-
-### Third-Party Integrations
-
-**Identity Verification**
-- [Persona](https://withpersona.com/) for Guardian identity verification and KYC compliance
-
-**Communication Services**
-- **Firebase Cloud Messaging**: Push notifications to Guardian devices
-- **AWS SES**: Transactional email delivery
-- **Sinch.com**: Phone number masking during job sessions and OTP SMS delivery
-
-**Monitoring & Observability**
-- **AWS CloudWatch**: Backend system monitoring, logging, and alerting
-- **Sentry.io**: Mobile application error tracking and performance monitoring
-
-### DevOps & Infrastructure
-
-**CI/CD Pipeline**
-- **Jenkins**: Automated build, test, and deployment orchestration
-- **GitHub**: Source code management and version control
-- Fully automated deployment pipeline for all components
-
-**Infrastructure as Code**
-- **Terraform**: Complete AWS infrastructure management
-- Jenkins-orchestrated infrastructure deployments
-- Version-controlled infrastructure definitions ensuring reproducibility
-
-## System Architecture Diagram
+## Data flow
 
 ```mermaid
-graph TB
-    subgraph "Client Layer"
-        GA[Guardian Mobile App<br/>Expo React Native]
-        PF[Portal Frontend<br/>React Refine]
-    end
+flowchart LR
+    Client[Your end user]
+    You[Your backend]
+    PAPI[Partner API]
+    Core[G2 Sentry core]
+    Guardian[Guardian app]
 
-    subgraph "AWS Cloud Infrastructure"
-        subgraph "Application Layer - ECS/Fargate"
-            ALB[Application Load Balancer]
-            MAIN[Main API Backend<br/>Java 21 Spring Boot WebFlux]
-            PARTNER[Partner API Backend<br/>Java 21 Spring Boot WebFlux]
-            PORTAL[Portal Backend<br/>Java 21 Spring Boot WebFlux]
-        end
-
-        subgraph "Data Layer"
-            DB[(PostgreSQL<br/>AWS Aurora)]
-            S3[AWS S3<br/>File Storage]
-            PS[AWS Parameter Store<br/>Configuration]
-        end
-
-        subgraph "AWS Services"
-            SES[AWS SES<br/>Email]
-            CW[AWS CloudWatch<br/>Monitoring & Alerts]
-        end
-    end
-
-    subgraph "External Services"
-        FCM[Firebase Cloud<br/>Messaging]
-        PERSONA[Persona.com<br/>Identity Verification]
-        SINCH[Sinch.com<br/>SMS & Phone Masking]
-        SENTRY[Sentry.io<br/>Mobile Monitoring]
-    end
-
-    subgraph "DevOps"
-        GH[GitHub<br/>Source Control]
-        JENKINS[Jenkins<br/>CI/CD]
-        TF[Terraform<br/>IaC]
-    end
-
-    GA -->|HTTPS| ALB
-    PF -->|HTTPS| ALB
-    ALB --> MAIN
-    ALB --> PARTNER
-    ALB --> PORTAL
-
-    MAIN --> DB
-    PARTNER --> DB
-    PORTAL --> DB
-
-    MAIN --> S3
-    PARTNER --> S3
-    PORTAL --> S3
-
-    MAIN --> PS
-    PARTNER --> PS
-    PORTAL --> PS
-
-    MAIN -.->|Send Email| SES
-    PORTAL -.->|Send Email| SES
-
-    MAIN -.->|Push Notifications| FCM
-    FCM -.-> GA
-
-    MAIN -.->|Identity Check| PERSONA
-    MAIN -.->|SMS/Phone Mask| SINCH
-
-    GA -.->|Error Tracking| SENTRY
-
-    MAIN -.->|Logs/Metrics| CW
-    PARTNER -.->|Logs/Metrics| CW
-    PORTAL -.->|Logs/Metrics| CW
-
-    GH -->|Webhook| JENKINS
-    JENKINS -->|Deploy| MAIN
-    JENKINS -->|Deploy| PARTNER
-    JENKINS -->|Deploy| PORTAL
-    JENKINS -->|Deploy| GA
-    JENKINS -->|Deploy| PF
-
-    JENKINS -->|Execute| TF
-    TF -.->|Provision| ALB
-    TF -.->|Provision| DB
-    TF -.->|Provision| S3
-
-    style GA fill:#e1f5ff
-    style PF fill:#e1f5ff
-    style MAIN fill:#fff4e1
-    style PARTNER fill:#fff4e1
-    style PORTAL fill:#fff4e1
-    style DB fill:#e8f5e9
-    style S3 fill:#e8f5e9
+    Client --> You
+    You -->|create / update jobs| PAPI
+    PAPI --> Core
+    Core -.->|dispatch| Guardian
+    Core -->|signed callbacks| You
+    You --> Client
 ```
 
-## Technology Stack Summary
+Solid arrows are request/response; dashed is asynchronous. Nothing you
+send to the Partner API reaches a Guardian directly — G2 Sentry's
+dispatch picks the Guardian and routes the job.
 
-| Layer | Technology | Purpose |
-|-------|-----------|---------|
-| **Backend Runtime** | Java 21 (LTS) | Long-term support, modern language features |
-| **Backend Framework** | Spring Boot 3.x WebFlux | Reactive, non-blocking asynchronous processing |
-| **Mobile Framework** | Expo React Native | Cross-platform mobile development |
-| **Web Framework** | React Refine | Admin panel and portal development |
-| **Database** | PostgreSQL (AWS Aurora) | Relational data storage with high availability |
-| **Compute** | AWS ECS/Fargate | Serverless container orchestration |
-| **Load Balancing** | AWS Application Load Balancer | Traffic distribution and SSL termination |
-| **Object Storage** | AWS S3 | Scalable file storage with presigned URLs |
-| **Configuration** | AWS Parameter Store | Externalized, encrypted configuration management |
-| **Email** | AWS SES | Transactional email delivery |
-| **Push Notifications** | Firebase Cloud Messaging | Mobile push notification delivery |
-| **SMS/Voice** | Sinch.com | OTP delivery and phone number masking |
-| **Identity Verification** | Persona | KYC and identity verification |
-| **Backend Monitoring** | AWS CloudWatch | Logs, metrics, and alerting |
-| **Mobile Monitoring** | Sentry.io | Error tracking and performance monitoring |
-| **CI/CD** | Jenkins + GitHub | Automated build and deployment |
-| **IaC** | Terraform | Infrastructure provisioning and management |
+## What's guaranteed and what's not
 
-## Key Architectural Benefits
+| Property | Behaviour |
+|---|---|
+| **API availability** | 99.9% target on the production environment. Demo is best-effort. |
+| **Token lifetime** | Access tokens 15 min, refresh tokens 7 days. |
+| **Callback delivery** | At-least-once with exponential backoff. Your handler must be idempotent. |
+| **Callback ordering** | Not guaranteed. Always treat `jobStatus` on the payload as the source of truth, not the sequence of events. |
+| **Cut-off window** | A partner can cancel a job up to 2h before its scheduled start. A Guardian can withdraw up to 2h before start. Past that, state transitions go through G2 Sentry operations. |
+| **Rate limits** | 60 requests / minute per partner key. Contact us if you need more. |
 
-### Scalability
-- Serverless compute automatically adjusts to demand
-- Stateless design enables infinite horizontal scaling
-- Reactive programming model maximizes resource efficiency
+## What we run (for context, not action)
 
-### Reliability
-- Multi-AZ database deployment for high availability
-- Auto-scaling prevents resource exhaustion
-- Comprehensive monitoring detects issues proactively
+Nothing on this list is part of the contract you integrate against —
+it's background so you know what's responding to your requests.
 
-### Maintainability
-- Infrastructure as Code ensures reproducible environments
-- 12-Factor methodology simplifies operational complexity
-- Automated CI/CD reduces deployment risk
+| Layer | Tech |
+|---|---|
+| Partner API | Java 21 + Spring Boot WebFlux (reactive, non-blocking) |
+| Database | PostgreSQL on AWS Aurora |
+| Compute | AWS ECS/Fargate behind an Application Load Balancer |
+| Secrets / config | AWS Parameter Store |
+| Push to Guardian app | Firebase Cloud Messaging |
+| SMS + masked phone numbers | Sinch |
+| Identity verification | Persona |
+| Monitoring | AWS CloudWatch (backend), Sentry (mobile) |
 
-### Security
-- Externalized configuration keeps secrets out of code
-- Presigned URLs provide time-limited, secure file access
-- Phone number masking protects user privacy
-- Third-party identity verification ensures Guardian trust
+## Where bugs usually come from
 
----
+If something isn't working end-to-end, 90% of the time it's one of:
 
-*This technical overview represents the current architecture of the G2 Sentry platform. Components marked as "subject to change" may evolve as the platform matures.*
+1. **Callback URL not reachable from the public internet** — we can't
+   deliver webhooks to `localhost` or an internal-only hostname. Use
+   an ngrok-style tunnel during development.
+2. **Signature mismatch** — you're computing HMAC over the parsed JSON
+   instead of the raw request body, or using the wrong secret. See
+   [Callbacks](../partner-api/callbacks.md).
+3. **Expired access token** — it's been 15 minutes and you haven't
+   refreshed. 401 responses are your signal to refresh.
+4. **Past the cut-off** — you're trying to cancel less than 2h before
+   the scheduled start. Responses say so explicitly.
+
+If you've ruled those out, email
+[mikeg@g2sentry.com](mailto:mikeg@g2sentry.com) with your `jobId` and
+we'll look at the logs.

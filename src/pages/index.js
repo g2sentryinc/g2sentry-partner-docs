@@ -15,12 +15,20 @@ function HomepageHeader() {
         <Heading as="h1" className="hero__title">
           {siteConfig.title}
         </Heading>
-        <p className="hero__subtitle">{siteConfig.tagline}</p>
+        <p className="hero__subtitle">
+          Integrate on-demand physical security into your product —
+          job APIs, signed webhook callbacks, and a partner portal.
+        </p>
         <div className={styles.buttons}>
           <Link
+            className="button button--primary button--lg"
+            to="/docs/get-started/overview">
+            Get Started
+          </Link>
+          <Link
             className="button button--secondary button--lg"
-            to="/docs/intro">
-            Documentation
+            to="/docs/partner-api/API">
+            API Reference
           </Link>
         </div>
       </div>
@@ -32,8 +40,8 @@ export default function Home() {
   const {siteConfig} = useDocusaurusContext();
   return (
     <Layout
-      title={`Hello from ${siteConfig.title}`}
-      description="Description will go into a meta tag in <head />">
+      title={siteConfig.title}
+      description="Partner documentation for the G2 Sentry on-demand physical security platform.">
       <HomepageHeader />
       <main>
         <HomepageFeatures />

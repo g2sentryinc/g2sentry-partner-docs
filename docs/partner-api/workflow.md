@@ -2,50 +2,97 @@
 sidebar_position: 2
 ---
 
-# G2Sentry Workflow Overview
-## Purpose
-This document provides a high-level overview of the G2Sentry workflow, describing the lifecycle of a Guardian Service job and the interactions between the partner, guardian, and partner client.
+# Job Workflow
 
-## Workflow Summary
-1. **Job Request**
-    - The partner requests a new Guardian Service job.
-2. **Job Assignment**
-    - A guardian is notified and can accept the job.
-3. **Job Execution**
-    - When the scheduled time arrives, the guardian travels to the job location and starts the job.
-    - The guardian completes the job when the allotted time ends.
-4. **Feedback**
-    - After job completion, both the partner client and the guardian can submit feedback (rating 1-5 and a review) about the job and each other.
-5. **Job Withdrawal/Cancellation**
-    - The guardian may withdraw from an assigned job up to 2 hours before the scheduled start time (cut-off time).
-    - The partner client may cancel the job up to 2 hours before the scheduled start time.
-6. **Notifications**
-    - The partner is notified of job events via callbacks to the partner's API.
-## Roles
-- **Partner**: Requests jobs and receives event notifications.
-- **Guardian**: Accepts, performs, or withdraws from jobs; provides feedback.
-- **Partner Client**: Cancels jobs, provides feedback.
-## Key Events
-- Job Requested
-- Job Assigned
-- Guardian Withdrawn (before cut-off)
-- Job Cancelled (before cut-off)
-- Job Started
-- Job Completed
-- Feedback Submitted
-- Partner Notified (via API callback)
-## Diagram
+A job moves through a small set of states from the moment you create
+it until a guardian closes it out. This page is the definitive
+reference for those states, what causes each transition, and which
+events reach your callback URL.
+
+## Job states
+
+Four states on the happy path, plus `Canceled` (note: single L — that's
+how the API spells it) as a possible exit from the first two:
 
 ```mermaid
-sequenceDiagram
-    Client->>+Partner API: Request new Job
-    Partner API->>+G2Sentry: Create and NEW Job
-    Guardian->>+G2Sentry: Assigned for the Job
-    G2Sentry->>+Client: Notify Client the Job has Guardian
-    Guardian->>+G2Sentry: Starts the Job
-    G2Sentry->>+Client: Notify Client the Job has been Started
-    Guardian->>+G2Sentry: Completes the Job
-    G2Sentry->>+Client: Notify Client the Job has been Successfuly Completed
-    Guardian->>+G2Sentry: Sends Feedback (Rate and Review)
-    Client->>+Partner API: Sends Feedback (Rate and Review)
+flowchart LR
+    New --> Assigned --> InProgress --> Completed
+    New -->|cancel| Canceled
+    Assigned -->|cancel| Canceled
+    Assigned -->|withdraw| New
 ```
+
+| State | Meaning |
+|---|---|
+| **New** | Job created; waiting for a Guardian to accept. |
+| **Assigned** | A Guardian has accepted and is scheduled. |
+| **InProgress** | The Guardian has arrived and started the shift. |
+| **Completed** | The Guardian closed the shift. Feedback can now be submitted. |
+| **Canceled** | Either the partner canceled, or no Guardian accepted before it became impossible to fulfil. |
+
+## Cut-off rules
+
+Both sides have a **2-hour cut-off** before the scheduled start time:
+
+- Before cut-off — the partner can cancel, and an assigned Guardian
+  can withdraw, both at will. Withdrawal returns the job to `New`;
+  cancelation moves it to `Canceled`.
+- After cut-off — neither side can exit via the API. Late changes go
+  through G2 Sentry operations; email
+  [mikeg@g2sentry.com](mailto:mikeg@g2sentry.com).
+
+## End-to-end happy path
+
+Five steps from booking to feedback. The callback you receive is
+listed under each step where one fires.
+
+```mermaid
+flowchart LR
+    A[Partner<br/>creates job]
+    B[Guardian<br/>accepts]
+    C[Guardian<br/>starts shift]
+    D[Guardian<br/>completes]
+    E[Both sides<br/>rate the job]
+    A --> B --> C --> D --> E
+```
+
+| Step | Who drives it | Callback fired |
+|---|---|---|
+| 1. Create job | Partner (`POST /jobs`) | — |
+| 2. Accept | Guardian, in their app | `JobAssigned` |
+| 3. Start shift | Guardian, on arrival | `JobStarted` |
+| 4. Complete shift | Guardian, at end | `JobCompleted` |
+| 5. Rate | Partner (`POST /jobs/{id}/review`) + Guardian in-app | — |
+
+## Events vs callbacks
+
+G2 Sentry logs many events internally, but only four of them are
+pushed to your callback URL:
+
+| Event | Delivered as callback? | Trigger |
+|---|---|---|
+| `NewJob` | No (internal) | Partner creates the job. |
+| `JobAssigned` | **Yes** | Guardian accepts the offer. |
+| `JobStarted` | **Yes** | Guardian marks arrival and starts the shift. |
+| `JobCompleted` | **Yes** | Guardian finishes the shift. |
+| `JobWithdrawed` | **Yes** | Guardian withdraws before cut-off. Job returns to `New`. |
+| `JobGuardianRate` | No (internal) | Guardian rates the client. |
+| `JobClientRate` | No (internal) | Partner submits client feedback. |
+
+Poll `/jobs/{id}/status` if you need any event that's not in the
+callback stream.
+
+## Feedback
+
+After a job moves to `Completed`, both sides can submit feedback
+once. Ratings are 1–5 with an optional comment:
+
+- **Partner-side** (acting for the end user): `POST /jobs/{id}/review`
+- **Guardian-side** is submitted from the Guardian app directly to
+  G2 Sentry. You don't need to handle it.
+
+## Next
+
+- Full callback payload shapes and verification snippets:
+  [Callbacks](./callbacks.md).
+- Endpoint reference with curl examples: [API](./API.md).

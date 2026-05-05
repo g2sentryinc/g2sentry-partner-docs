@@ -2,119 +2,170 @@
 sidebar_position: 4
 ---
 
-# Partner API Callbacks
+# Callbacks
 
-## Overview
+When a job changes state, G2 Sentry POSTs a small signed JSON payload
+to the callback URL configured on your partner profile. This is how
+your backend stays in sync with what the Guardian is actually doing
+in the field — drive your UI off these events rather than polling.
 
-Callbacks are a fundamental part of the `G2 Sentry Partner API`, designed to keep your platform up-to-date with real-time job status changes. When significant events occur for jobs requested via the API, G2 Sentry sends HTTP POST requests to your configured callback URL. This enables your system to react immediately to changes, such as updating your UI, notifying users, or triggering automated workflows.
+## Delivery guarantees
 
-Callbacks are sent for the following job events:
-- **JobAssigned**: A guardian has been assigned to the job.
-- **JobStarted**: The guardian has started the job.
-- **JobCompleted**: The job has been completed.
-- **JobWithdrawed**: The job has been withdrawn or canceled.
+- **At least once.** Your handler must be idempotent. We key retries
+  on `(jobId, eventType)` so a duplicate is always the same payload.
+- **Retry on non-2xx.** 1s, 5s, 30s, 2m, 10m, 1h. After that we give
+  up and log the failure internally.
+- **Not strictly ordered.** `JobStarted` can arrive before `JobAssigned`
+  under retry conditions. Treat the `jobStatus` field in the payload
+  as authoritative, not the arrival sequence.
+- **HTTPS only.** Plain-HTTP callback URLs are rejected at profile
+  save time.
 
-## Securing Callbacks with HMAC
+## What events fire
 
-To ensure the authenticity and integrity of callback requests, each callback includes an HMAC signature in the request headers. This signature is calculated using your callback secret and the raw JSON payload. Your system should verify this signature before processing the callback.
+| `eventType` | Sent when | Resulting `jobStatus` |
+|---|---|---|
+| `JobAssigned` | A Guardian accepts the offer. | `Assigned` |
+| `JobStarted` | The Guardian arrives and starts the shift. | `InProgress` |
+| `JobCompleted` | The Guardian closes the shift. | `Completed` |
+| `JobWithdrawed` | The Guardian withdraws before cut-off. Job is un-assigned and available again. | `New` |
 
-**Example header:**
-```
-X-Signature: <signature>
-```
+Internal events (`NewJob`, `JobGuardianRate`, `JobClientRate`) are not
+pushed. Poll `/jobs/{id}/status` if you need them.
 
-**How to verify:**
-1. Use your callback secret as the HMAC key.
-2. Calculate the HMAC SHA256 hash of the raw request body.
-3. Compare your calculated signature with the value in the `X-Signature` header.
+## Payload shape
 
-## Callback Payload Format
+All callbacks are `POST application/json` with this envelope:
 
-All callback payloads are sent as JSON objects. Below are the possible fields and examples for each event type.
-
-### Common Fields
-
-- `jobId` (integer): Unique identifier of the job.
-- `eventType` (string): Type of event (`JobAssigned`, `JobStarted`, `JobCompleted`, `JobWithdrawed`).
-- `jobName` (string): Name or description of the job.
-- `jobStatus` (string): Current status of the job.
-
-### Additional Fields
-
-- `guardianPhone` (string, optional): Masked phone number for contacting the assigned guardian (included for jobs in progress).
-
-### Example Payloads
-
-**Job Assigned**
 ```json
 {
-  "jobId": 5,
+  "jobId": 9142,
   "eventType": "JobAssigned",
-  "jobName": "Open House at 123 Main St",
-  "jobStatus": "Assigned"
-}
-```
-
-**Job Assigned (with guardian phone)**
-```json
-{
-  "jobId": 5,
-  "eventType": "JobAssigned",
-  "jobName": "Open House at 123 Main St",
+  "jobName": "Open house at 123 Main St",
   "jobStatus": "Assigned",
   "guardianPhone": "+12345678901"
 }
 ```
 
-**Job Started**
-```json
-{
-  "jobId": 5,
-  "eventType": "JobStarted",
-  "jobName": "Open House at 123 Main St",
-  "jobStatus": "InProgress",
-  "guardianPhone": "+12345678901"
-}
+| Field | Type | Present for |
+|---|---|---|
+| `jobId` | integer | Every event |
+| `eventType` | string | Every event — one of the four above |
+| `jobName` | string | Every event |
+| `jobStatus` | string | Every event — the state the job is in *after* this event |
+| `guardianPhone` | string (optional) | `JobAssigned`, `JobStarted` — Sinch-masked number; valid for the shift |
+
+The masked `guardianPhone` is a real, callable number that routes to
+the Guardian but hides their personal number. It stops working shortly
+after `JobCompleted`.
+
+## Signature verification
+
+Every request carries an HMAC-SHA256 signature in the `X-Signature`
+header, computed over the **raw request body** using your callback
+secret as the key and hex-encoded:
+
+```
+X-Signature: 3c0a1f…
 ```
 
-**Job Completed**
-```json
-{
-  "jobId": 5,
-  "eventType": "JobCompleted",
-  "jobName": "Open House at 123 Main St",
-  "jobStatus": "Completed"
-}
+Verify **before parsing JSON** — once you parse, the byte-exact body
+is gone, and naively re-serialising won't match because whitespace and
+key order aren't stable.
+
+### Node.js (Express)
+
+```js
+import express from 'express';
+import crypto from 'node:crypto';
+
+const app = express();
+
+// Capture the raw body for signature verification before parsing.
+app.use('/callbacks/g2sentry', express.raw({ type: 'application/json' }));
+
+const SECRET = process.env.G2SENTRY_CALLBACK_SECRET;
+
+app.post('/callbacks/g2sentry', (req, res) => {
+  const provided = req.header('X-Signature') || '';
+  const expected = crypto
+    .createHmac('sha256', SECRET)
+    .update(req.body)           // raw Buffer — do not JSON.stringify
+    .digest('hex');
+
+  const ok =
+    provided.length === expected.length &&
+    crypto.timingSafeEqual(
+      Buffer.from(provided, 'hex'),
+      Buffer.from(expected, 'hex'),
+    );
+
+  if (!ok) return res.status(401).send('invalid signature');
+
+  const event = JSON.parse(req.body.toString('utf8'));
+  handleEvent(event);           // your business logic — keep it fast
+  res.status(204).end();        // ack quickly, do heavy work async
+});
 ```
 
-**Job Withdrawed**
-```json
-{
-  "jobId": 5,
-  "eventType": "JobWithdrawed",
-  "jobName": "Open House at 123 Main St",
-  "jobStatus": "New"
-}
+### Python (FastAPI)
+
+```python
+import hmac
+import hashlib
+import os
+from fastapi import FastAPI, Header, HTTPException, Request
+
+app = FastAPI()
+SECRET = os.environ["G2SENTRY_CALLBACK_SECRET"].encode()
+
+@app.post("/callbacks/g2sentry")
+async def g2sentry_callback(
+    request: Request,
+    x_signature: str = Header(...),
+):
+    raw = await request.body()          # bytes, not the parsed model
+    expected = hmac.new(SECRET, raw, hashlib.sha256).hexdigest()
+    if not hmac.compare_digest(expected, x_signature):
+        raise HTTPException(401, "invalid signature")
+
+    event = await request.json()
+    handle_event(event)                 # your business logic
+    return {"ok": True}
 ```
 
-## Supported Event Types
+### What trips people up
 
-While the API defines several event types, only the following are sent as callbacks:
+- **Re-serialising before hashing.** `JSON.stringify(req.body)` produces
+  a byte-different body from what we sent. Always hash the raw bytes.
+- **Body-parser mutations.** Frameworks like Express add implicit JSON
+  parsing that consumes the raw stream. Mount the raw-body handler
+  *before* any JSON middleware on the callback route.
+- **Trimming whitespace.** Don't. The signature is over the bytes we
+  sent, not a cleaned-up version.
+- **Wrong secret.** The callback secret is separate from the partner
+  secret. You set and rotate it in the [portal](../portal/overview.md).
 
-- `JobAssigned`
-- `JobStarted`
-- `JobCompleted`
-- `JobWithdrawed`
+## Local development
 
-Other event types such as `NewJob`, `JobGuardianRate`, and `JobClientRate` are not currently sent via callbacks.
+Callback URLs must be reachable from the public internet. During
+development, expose your local server with an HTTP tunnel:
 
-## Sample Implementation
+```bash
+# ngrok
+ngrok http 3000
+# cloudflared
+cloudflared tunnel --url http://localhost:3000
+```
 
-For a practical example of how to implement and verify callbacks using Node.js, see the sample project:
+Paste the https URL into your partner profile callback field in the
+portal, then create a demo job to see signed events arrive.
 
-[https://github.com/g2sentryinc/g2sentry-partner-sample](https://github.com/g2sentryinc/g2sentry-partner-sample)
+## Runnable sample
 
-This project demonstrates receiving callbacks, verifying HMAC signatures, and processing job events.
-
----
-For more details on configuring your callback URL and secret, refer to the
+The [CodeSandbox test app](../cookbook/codesandbox-test-app.md) is a
+small Express server that creates a job against the demo environment,
+receives its callbacks, verifies the signatures, and prints the state
+transitions live in the browser. Clone it, paste your credentials,
+and you have a working reference implementation in under five
+minutes.
